@@ -203,10 +203,10 @@ jobs:
         with:
           name: eos-mail-${{ matrix.platform }}-${{ env.REF }}
           path: |
-            app/src-tauri/target/release/bundle/nsis/*.exe
-            app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            app/src-tauri/target/release/bundle/deb/*.deb
-            app/src-tauri/target/release/bundle/appimage/*.AppImage
+            app/target/release/bundle/nsis/*.exe
+            app/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            app/target/release/bundle/deb/*.deb
+            app/target/release/bundle/appimage/*.AppImage
           retention-days: 90
           if-no-files-found: error
 

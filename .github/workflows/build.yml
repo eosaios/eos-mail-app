@@ -222,9 +222,14 @@ jobs:
           pattern: eos-mail-*
           merge-multiple: true
 
-      - name: Generate SHA256SUMS
+      # upload-artifact 保留相对路径（release/bundle/...、universal-apple-darwin/...），
+      # 先摊平成单层再算校验和，避免 sha256sum 撞目录。
+      - name: Flatten assets + Generate SHA256SUMS
         run: |
-          cd dist
+          mkdir -p flat
+          find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' \) -exec cp {} flat/ \;
+          cd flat
+          ls -la
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
@@ -233,7 +238,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME}"
-          gh release create "$VERSION" dist/* \
+          gh release create "$VERSION" flat/* \
             --title "EOS Mail $VERSION" \
             --notes "三端安装包（Windows NSIS 安装器 / macOS dmg universal / Linux deb+AppImage），beta 期间免费使用。
 

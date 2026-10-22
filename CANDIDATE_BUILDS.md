@@ -17,7 +17,7 @@ gh workflow run mail-candidate.yml --repo eosaios/eos-mail-app \
   -f run_base_tests=true
 ```
 
-默认运行基础 Rust 测试、组合版前端/Rust 测试，然后构建安装包。只有相同业务源码的原生测试已通过，且仅重跑打包时，才关闭对应测试输入，并在发布记录中引用先前运行。`reuse_core_run` 仅接受流程中明确审计过的平台/运行组合；缺省会从固定源码重新构建。
+默认运行基础 Rust 测试、组合版前端/Rust 测试，然后构建安装包。只有相同业务源码的原生测试已通过，且仅重跑打包时，才关闭对应测试输入，并在发布记录中引用先前运行。`ai_library_tests_only=true` 用于仅修复 AI 库测试夹具的复验：业务源码必须未改，上一原生全套运行的其他目标须已通过，并保留两次运行记录。`reuse_core_run` 仅接受流程中明确审计过的平台/运行组合；缺省会从固定源码重新构建。
 
 每个安装包在真实安装目录中运行 `--build-info` 和 `--verify-package`，再输出 `*.manifest.json`，记录渠道、环境、版本、文件大小/SHA256 和私有内核清单。Mac 另外检查代码签名。Beta 与 Dev artifacts 分别上传，避免后一渠道构建失败影响前一渠道制品的保存。
 

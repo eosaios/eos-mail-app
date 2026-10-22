@@ -12,6 +12,10 @@ on:
       dev_version:
         required: true
         default: '0.2.0-dev.2'
+      run_base_tests:
+        required: true
+        type: boolean
+        default: true
       run_tests:
         required: true
         type: boolean
@@ -52,6 +56,9 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -121,7 +128,7 @@ jobs:
         shell: bash
         run: chmod +x eos-core-rs/target/release/eos-core-mail
       - name: Verify base-only integration contracts
-        if: inputs.run_tests
+        if: inputs.run_tests && inputs.run_base_tests
         working-directory: eos-mail
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/mail-build/target

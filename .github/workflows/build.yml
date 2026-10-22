@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: eosaios/eos-core-rs
-          ref: d3a967f
+          ref: d3a967f198a7578e4446820b1b5a2aaf3ce24f79
           ssh-key: ${{ secrets.MAIL_CORE_BUILD_KEY }}
           path: eos-core-rs
       - uses: actions/setup-node@v4

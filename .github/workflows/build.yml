@@ -11,7 +11,7 @@ on:
         default: '0.2.0-beta.2'
       dev_version:
         required: true
-        default: '0.2.0-dev.1'
+        default: '0.2.0-dev.2'
       platforms:
         required: true
         default: all
@@ -135,6 +135,12 @@ jobs:
           else
             python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" --channel beta --platform "$PLATFORM" --build-id "$BUILD_ID" --output beta-output --test
           fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eos-mail-beta-${{ matrix.platform }}
+          path: beta-output/*
+          if-no-files-found: error
+          retention-days: 30
       - name: Build and verify macOS development package
         if: runner.os == 'macOS'
         shell: bash
@@ -144,10 +150,9 @@ jobs:
           BUILD_ID: mail-${{ github.run_id }}-${{ github.run_attempt }}
         run: python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core eos-core-rs/target/release/eos-core-mail --version "$VERSION" --channel dev --platform darwin-arm64 --build-id "$BUILD_ID" --output dev-output
       - uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS'
         with:
-          name: eos-mail-candidate-${{ matrix.platform }}
-          path: |
-            beta-output/*
-            dev-output/*
+          name: eos-mail-dev-${{ matrix.platform }}
+          path: dev-output/*
           if-no-files-found: error
           retention-days: 30

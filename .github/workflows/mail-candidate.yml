@@ -123,7 +123,12 @@ jobs:
         shell: bash
         env:
           CORE_RUN: ${{ inputs.reuse_core_run }}
-        run: test "$CORE_RUN" = 39736767555
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          case "$PLATFORM:$CORE_RUN" in
+            darwin-arm64:39736767555|linux-amd64:39736767555|windows-amd64:39744696413) ;;
+            *) echo "Core provenance does not match the selected native platform"; exit 1 ;;
+          esac
       - uses: actions/download-artifact@v4
         if: inputs.reuse_core_run != ''
         with:

@@ -12,6 +12,11 @@ on:
       dev_version:
         required: true
         default: '0.2.0-dev.2'
+      ai_library_tests_only:
+        description: Rerun AI library after a test-only fix; retain prior full native test evidence
+        required: true
+        type: boolean
+        default: false
       run_base_tests:
         required: true
         type: boolean
@@ -155,9 +160,10 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           CORE: ${{ matrix.core }}
           RUN_TESTS: ${{ inputs.run_tests }}
+          AI_LIBRARY_ONLY: ${{ inputs.ai_library_tests_only }}
         run: |
           TEST_ARGS=()
-          if [ "$RUN_TESTS" = true ]; then TEST_ARGS=(--test); fi
+          if [ "$RUN_TESTS" = true ]; then TEST_ARGS=(--test); elif [ "$AI_LIBRARY_ONLY" = true ]; then TEST_ARGS=(--test-ai-lib); fi
           if [ "$RUNNER_OS" = Linux ]; then
             xvfb-run -a python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" --channel beta --platform "$PLATFORM" --build-id "$BUILD_ID" --output beta-output "${TEST_ARGS[@]}"
           else

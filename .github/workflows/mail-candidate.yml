@@ -3,8 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       base_ref:
+        description: Full immutable base source commit SHA
         required: true
       pro_ref:
+        description: Full immutable Pro source commit SHA
         required: true
       beta_version:
         required: true
@@ -12,6 +14,11 @@ on:
       dev_version:
         required: true
         default: '0.2.0-dev.2'
+      ai_library_tests_only:
+        description: Rerun AI library after a test-only fix; retain prior full native test evidence
+        required: true
+        type: boolean
+        default: false
       run_base_tests:
         required: true
         type: boolean
@@ -40,9 +47,12 @@ jobs:
       - id: matrix
         env:
           SELECTED: ${{ inputs.platforms }}
+          BASE_REF: ${{ inputs.base_ref }}
+          PRO_REF: ${{ inputs.pro_ref }}
         run: |
           python - <<'PYMATRIX'
-          import json,os
+          import json,os,re
+          assert all(re.fullmatch(r"[0-9a-f]{40}", os.environ[key]) for key in ["BASE_REF","PRO_REF"]), "Use full immutable source commit SHAs"
           rows=[dict(os='macos-15',platform='darwin-arm64',core='eos-core-mail'),dict(os='windows-2025',platform='windows-amd64',core='eos-core-mail.exe'),dict(os='ubuntu-24.04',platform='linux-amd64',core='eos-core-mail')]
           selected=os.environ['SELECTED'];assert selected in ['all','mac-linux','darwin-arm64','windows-amd64','linux-amd64']
           rows=[r for r in rows if selected=='all' or r['platform']==selected or (selected=='mac-linux' and r['platform']!='windows-amd64')]
@@ -155,9 +165,10 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           CORE: ${{ matrix.core }}
           RUN_TESTS: ${{ inputs.run_tests }}
+          AI_LIBRARY_ONLY: ${{ inputs.ai_library_tests_only }}
         run: |
           TEST_ARGS=()
-          if [ "$RUN_TESTS" = true ]; then TEST_ARGS=(--test); fi
+          if [ "$RUN_TESTS" = true ]; then TEST_ARGS=(--test); elif [ "$AI_LIBRARY_ONLY" = true ]; then TEST_ARGS=(--test-ai-lib); fi
           if [ "$RUNNER_OS" = Linux ]; then
             xvfb-run -a python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" --channel beta --platform "$PLATFORM" --build-id "$BUILD_ID" --output beta-output "${TEST_ARGS[@]}"
           else

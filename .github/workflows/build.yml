@@ -58,6 +58,11 @@ jobs:
         with:
           python-version: '3.12'
       - uses: dtolnay/rust-toolchain@1.93.1
+      - name: Verify native runner architecture
+        shell: bash
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+        run: python -c "import platform,os; system={'Darwin':'darwin','Windows':'windows','Linux':'linux'}[platform.system()]; arch={'arm64':'arm64','aarch64':'arm64','amd64':'amd64','x86_64':'amd64'}[platform.machine().lower()]; assert system+'-'+arch == os.environ['EXPECTED_PLATFORM']"
       - name: Linux native dependencies
         if: runner.os == 'Linux'
         run: |
@@ -67,9 +72,18 @@ jobs:
         with:
           workspaces: eos-core-rs
           key: mail-core-d3a967f-${{ matrix.platform }}
+          cache-on-failure: true
       - name: Build pinned native Mail core
         working-directory: eos-core-rs
         run: cargo build --release --locked -p eos-core-bin --bin eos-core-mail --features product-mail
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mail-private-core-${{ matrix.platform }}
+          path: eos-core-rs/target/release/${{ matrix.core }}
+          if-no-files-found: error
+      - name: Verify base-only integration contracts
+        working-directory: eos-mail
+        run: cargo test --workspace --no-fail-fast -- --test-threads=1
       - name: Resolve base dependencies from the same checked out source
         shell: bash
         run: python -c "import pathlib,subprocess;subprocess.run(['git','config','--global','url.'+pathlib.Path('eos-mail').resolve().as_uri()+'.insteadOf','https://github.com/eosaios/eos-mail'],check=True)"

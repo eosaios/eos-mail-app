@@ -60,6 +60,12 @@ jobs:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
     steps:
+      - name: Preserve embedded pack bytes across platforms
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - uses: actions/checkout@v4
         with:
           repository: eosaios/eos-mail
@@ -98,11 +104,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: eos-core-rs
-          key: mail-core-d3a967f-${{ matrix.platform }}
+          key: mail-core-d3a967f-native-v2-${{ matrix.platform }}
           cache-on-failure: true
       - name: Build pinned native Mail core
         if: inputs.reuse_core_run == ''
         working-directory: eos-core-rs
+        env:
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
         run: cargo build --release --locked -p eos-core-bin --bin eos-core-mail --features product-mail
       - uses: actions/upload-artifact@v4
         if: inputs.reuse_core_run == ''

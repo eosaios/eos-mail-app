@@ -12,6 +12,10 @@ on:
       dev_version:
         required: true
         default: '0.2.0-dev.2'
+      run_tests:
+        required: true
+        type: boolean
+        default: true
       platforms:
         required: true
         default: all
@@ -117,6 +121,7 @@ jobs:
         shell: bash
         run: chmod +x eos-core-rs/target/release/eos-core-mail
       - name: Verify base-only integration contracts
+        if: inputs.run_tests
         working-directory: eos-mail
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/mail-build/target
@@ -129,11 +134,14 @@ jobs:
           BUILD_ID: mail-${{ github.run_id }}-${{ github.run_attempt }}
           PLATFORM: ${{ matrix.platform }}
           CORE: ${{ matrix.core }}
+          RUN_TESTS: ${{ inputs.run_tests }}
         run: |
+          TEST_ARGS=()
+          if [ "$RUN_TESTS" = true ]; then TEST_ARGS=(--test); fi
           if [ "$RUNNER_OS" = Linux ]; then
-            xvfb-run -a python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" --channel beta --platform "$PLATFORM" --build-id "$BUILD_ID" --output beta-output --test
+            xvfb-run -a python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" --channel beta --platform "$PLATFORM" --build-id "$BUILD_ID" --output beta-output "${TEST_ARGS[@]}"
           else
-            python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" --channel beta --platform "$PLATFORM" --build-id "$BUILD_ID" --output beta-output --test
+            python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" --channel beta --platform "$PLATFORM" --build-id "$BUILD_ID" --output beta-output "${TEST_ARGS[@]}"
           fi
       - uses: actions/upload-artifact@v4
         with:

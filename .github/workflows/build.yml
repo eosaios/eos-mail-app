@@ -12,24 +12,40 @@ on:
       dev_version:
         required: true
         default: '0.2.0-dev.1'
+      platforms:
+        required: true
+        default: all
+        type: choice
+        options: [all, mac-linux, darwin-arm64, windows-amd64, linux-amd64]
+      reuse_core_run:
+        required: false
+        default: ''
 permissions:
   contents: read
+  actions: read
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - id: matrix
+        env:
+          SELECTED: ${{ inputs.platforms }}
+        run: |
+          python - <<'PYMATRIX'
+          import json,os
+          rows=[dict(os='macos-15',platform='darwin-arm64',core='eos-core-mail'),dict(os='windows-2025',platform='windows-amd64',core='eos-core-mail.exe'),dict(os='ubuntu-24.04',platform='linux-amd64',core='eos-core-mail')]
+          selected=os.environ['SELECTED'];assert selected in ['all','mac-linux','darwin-arm64','windows-amd64','linux-amd64']
+          rows=[r for r in rows if selected=='all' or r['platform']==selected or (selected=='mac-linux' and r['platform']!='windows-amd64')]
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('matrix='+json.dumps(dict(include=rows))+'\n')
+          PYMATRIX
   build:
+    needs: plan
     name: ${{ matrix.platform }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: macos-15
-            platform: darwin-arm64
-            core: eos-core-mail
-          - os: windows-2025
-            platform: windows-amd64
-            core: eos-core-mail.exe
-          - os: ubuntu-24.04
-            platform: linux-amd64
-            core: eos-core-mail
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
     steps:
@@ -74,22 +90,41 @@ jobs:
           key: mail-core-d3a967f-${{ matrix.platform }}
           cache-on-failure: true
       - name: Build pinned native Mail core
+        if: inputs.reuse_core_run == ''
         working-directory: eos-core-rs
         run: cargo build --release --locked -p eos-core-bin --bin eos-core-mail --features product-mail
       - uses: actions/upload-artifact@v4
+        if: inputs.reuse_core_run == ''
         with:
           name: mail-private-core-${{ matrix.platform }}
           path: eos-core-rs/target/release/${{ matrix.core }}
           if-no-files-found: error
+      - name: Validate immutable core reuse
+        if: inputs.reuse_core_run != ''
+        shell: bash
+        env:
+          CORE_RUN: ${{ inputs.reuse_core_run }}
+        run: test "$CORE_RUN" = 39736767555
+      - uses: actions/download-artifact@v4
+        if: inputs.reuse_core_run != ''
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.reuse_core_run }}
+          name: mail-private-core-${{ matrix.platform }}
+          path: eos-core-rs/target/release
+      - name: Restore native core executable permission
+        if: inputs.reuse_core_run != '' && runner.os != 'Windows'
+        shell: bash
+        run: chmod +x eos-core-rs/target/release/eos-core-mail
       - name: Verify base-only integration contracts
         working-directory: eos-mail
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/mail-build/target
         run: cargo test --workspace --no-fail-fast -- --test-threads=1
-      - name: Resolve base dependencies from the same checked out source
-        shell: bash
-        run: python -c "import pathlib,subprocess;subprocess.run(['git','config','--global','url.'+pathlib.Path('eos-mail').resolve().as_uri()+'.insteadOf','https://github.com/eosaios/eos-mail'],check=True)"
       - name: Build and verify beta package
         shell: bash
         env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/mail-build/target
           VERSION: ${{ inputs.beta_version }}
           BUILD_ID: mail-${{ github.run_id }}-${{ github.run_attempt }}
           PLATFORM: ${{ matrix.platform }}
@@ -104,6 +139,7 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/mail-build/target
           VERSION: ${{ inputs.dev_version }}
           BUILD_ID: mail-${{ github.run_id }}-${{ github.run_attempt }}
         run: python eos-mail-pro/scripts/release_candidate.py --base eos-mail --core eos-core-rs/target/release/eos-core-mail --version "$VERSION" --channel dev --platform darwin-arm64 --build-id "$BUILD_ID" --output dev-output

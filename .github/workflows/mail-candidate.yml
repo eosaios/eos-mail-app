@@ -25,6 +25,10 @@ on:
       store_msix_identity:
         description: Partner Center Name, Publisher and PublisherDisplayName as a JSON array; package only
         default: ''
+      msix_listing_screenshot:
+        description: Capture the fresh-install welcome screen during repeat Windows QA
+        type: boolean
+        default: false
       beta_version:
         required: true
         default: '0.2.0-beta.2'
@@ -72,6 +76,7 @@ jobs:
           REUSE_MSIX_QA_RUN: ${{ inputs.reuse_msix_qa_run }}
           MSIX_QA_SHA256: ${{ inputs.msix_qa_sha256 }}
           STORE_MSIX_IDENTITY: ${{ inputs.store_msix_identity }}
+          MSIX_LISTING_SCREENSHOT: ${{ inputs.msix_listing_screenshot }}
         run: |
           python - <<'PYMATRIX'
           import json,os,re
@@ -92,6 +97,8 @@ jobs:
               identity=json.loads(os.environ['STORE_MSIX_IDENTITY'])
               assert os.environ['REUSE_MSIX_QA_RUN'], 'Store packaging requires the frozen QA build'
               assert isinstance(identity,list) and len(identity)==3 and all(isinstance(value,str) and value.strip() for value in identity), 'Use the three Partner Center identity fields'
+          if os.environ['MSIX_LISTING_SCREENSHOT']=='true':
+              assert os.environ['REUSE_MSIX_QA_RUN'] and not os.environ['STORE_MSIX_IDENTITY'], 'Listing screenshot requires sideload QA'
           if stable:
               assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", stable), "Stable requires a numeric release version"
               assert selected_platforms <= groups['windows-linux'], "Stable here is only for Windows and Linux"
@@ -389,12 +396,15 @@ jobs:
         shell: powershell
         env:
           FROZEN_PACKAGE: ${{ steps.frozen.outputs.package }}
-        run: ./eos-mail-pro/scripts/test-windows-msix.ps1 -Payload frozen/store-payload -Output store-qa -ExistingPackage $env:FROZEN_PACKAGE
+          CAPTURE_LISTING: ${{ inputs.msix_listing_screenshot }}
+        run: ./eos-mail-pro/scripts/test-windows-msix.ps1 -Payload frozen/store-payload -Output store-qa -ExistingPackage $env:FROZEN_PACKAGE -CaptureListingScreenshot:($env:CAPTURE_LISTING -eq 'true')
       - uses: actions/upload-artifact@v4
         if: always() && inputs.store_msix_identity == ''
         with:
           name: eos-mail-msix-native-recheck
-          path: store-qa/native-qa.json
+          path: |
+            store-qa/native-qa.json
+            store-qa/eos-mail-windows-welcome.png
           if-no-files-found: error
           retention-days: 7
       - name: Pack the frozen payload with the Partner Center identity

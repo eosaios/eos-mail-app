@@ -290,6 +290,7 @@ jobs:
           name: eos-mail-stable-${{ matrix.platform }}
           path: stable-output/*
           if-no-files-found: error
+          retention-days: 30
       - name: Build isolated Mail Store payload
         if: inputs.windows_msix_qa
         shell: bash
@@ -326,4 +327,3 @@ jobs:
             store-qa/native-qa.json
           if-no-files-found: error
           retention-days: 7
-          retention-days: 30

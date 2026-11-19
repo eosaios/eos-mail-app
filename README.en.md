@@ -10,20 +10,22 @@ A local-first desktop email client built with Tauri 2, Rust and React. Read and 
 
 ## Download & Install
 
-The current stable release is **v0.2.0**. The old “everything is free during beta” description no longer describes this release.
+[Latest stable release and file checksums](https://github.com/eosaios/eos-mail-app/releases/latest)
 
 | Platform | Current stable download |
 |---|---|
 | macOS · Apple Silicon | [Official download](https://eosaios.com/download/eos-mail/darwin-arm64) |
-| Linux · x64 | [v0.2.0 Release](https://github.com/eosaios/eos-mail-app/releases/tag/v0.2.0), with a `.deb` package and matching `.sha256` file |
-| Windows / macOS Intel / other formats | Not included in the stable downloads above; check the website for future releases |
+| Windows · x64 | [Download `.exe`](https://eosaios.com/download/eos-mail/windows-amd64) |
+| Linux · x64 | [Download `.deb`](https://eosaios.com/download/eos-mail/linux-amd64) |
+
+The Windows website installer lacks an Authenticode signature. SmartScreen may report an unknown publisher.
 
 Check the download source, OS and architecture, and follow the normal installation process. If the OS displays a security warning, report the warning and version rather than disabling security checks or removing quarantine attributes. Back up important mail, attachments and exports before updating or uninstalling. Uninstalling is not the same as deleting all local copies or data held by your mail provider.
 
 ## Mail Accounts & Features
 
 - **Multiple accounts**: connect mailboxes that support IMAP / SMTP, using provider-supported authentication and TLS-encrypted connections.
-- **Manual Gmail setup**: v0.2.0 supports Google App Passwords for IMAP receiving and SMTP sending, not one-click Gmail OAuth authorization. Enable Google 2-Step Verification, then [create an App Password](https://myaccount.google.com/apppasswords). Do not enter your main Google password. Availability depends on account eligibility and organization policies; see [Google's guidance](https://support.google.com/accounts/answer/185833).
+- **Manual Gmail setup**: use a Google App Password to receive mail over IMAP and send it over SMTP. Enable Google 2-Step Verification, then [create an App Password](https://myaccount.google.com/apppasswords). Do not enter your main Google password. Availability depends on account eligibility and organization policies. See [Google's guidance](https://support.google.com/accounts/answer/185833).
 - **Offline use**: read and search downloaded mail. New mail sync, sending and content not yet downloaded still require a connection.
 - **Search**: search synced messages by keywords and attachment conditions; this does not mean every attachment's contents are full-text indexed.
 - **Safe rendering**: sanitized HTML mail in a scriptless sandbox, with remote images blocked by default.

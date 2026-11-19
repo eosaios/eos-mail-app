@@ -22,6 +22,9 @@ on:
       msix_qa_sha256:
         description: Expected SHA-256 of the unsigned MSIX for repeat acceptance
         default: ''
+      store_msix_identity:
+        description: Partner Center Name, Publisher and PublisherDisplayName as a JSON array; package only
+        default: ''
       beta_version:
         required: true
         default: '0.2.0-beta.2'
@@ -68,6 +71,7 @@ jobs:
           WINDOWS_MSIX_QA: ${{ inputs.windows_msix_qa }}
           REUSE_MSIX_QA_RUN: ${{ inputs.reuse_msix_qa_run }}
           MSIX_QA_SHA256: ${{ inputs.msix_qa_sha256 }}
+          STORE_MSIX_IDENTITY: ${{ inputs.store_msix_identity }}
         run: |
           python - <<'PYMATRIX'
           import json,os,re
@@ -84,6 +88,10 @@ jobs:
               assert os.environ['WINDOWS_MSIX_QA']=='true'
               assert re.fullmatch(r'[0-9]+',os.environ['REUSE_MSIX_QA_RUN'])
               assert re.fullmatch(r'[0-9a-f]{64}',os.environ['MSIX_QA_SHA256'])
+          if os.environ['STORE_MSIX_IDENTITY']:
+              identity=json.loads(os.environ['STORE_MSIX_IDENTITY'])
+              assert os.environ['REUSE_MSIX_QA_RUN'], 'Store packaging requires the frozen QA build'
+              assert isinstance(identity,list) and len(identity)==3 and all(isinstance(value,str) and value.strip() for value in identity), 'Use the three Partner Center identity fields'
           if stable:
               assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", stable), "Stable requires a numeric release version"
               assert selected_platforms <= groups['windows-linux'], "Stable here is only for Windows and Linux"
@@ -341,7 +349,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   msix_recheck:
-    name: Windows MSIX sideload repeat
+    name: ${{ inputs.store_msix_identity != '' && 'Package unsigned Windows Store MSIX' || 'Windows MSIX sideload repeat' }}
     needs: plan
     if: inputs.reuse_msix_qa_run != ''
     runs-on: windows-2025
@@ -360,7 +368,8 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.reuse_msix_qa_run }}
           path: frozen
-      - name: Verify package digest and rerun native acceptance
+      - name: Verify frozen QA package and locate the Windows SDK
+        id: frozen
         shell: powershell
         env:
           VERSION: ${{ inputs.stable_version }}
@@ -370,15 +379,41 @@ jobs:
           if ((Get-FileHash $unsigned -Algorithm SHA256).Hash -ne $env:EXPECTED_SHA256) { throw 'Unsigned QA artifact hash changed' }
           $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
           $sdk = Get-ChildItem $kits -Directory | Where-Object {
-            Test-Path (Join-Path $_.FullName 'x64\signtool.exe')
+            (Test-Path (Join-Path $_.FullName 'x64\makeappx.exe')) -and (Test-Path (Join-Path $_.FullName 'x64\signtool.exe'))
           } | Sort-Object { [version] $_.Name } -Descending | Select-Object -First 1
-          if (-not $sdk) { throw 'Windows SDK signtool is required' }
-          $env:Path = (Join-Path $sdk.FullName 'x64') + ';' + $env:Path
-          ./eos-mail-pro/scripts/test-windows-msix.ps1 -Payload frozen/store-payload -Output store-qa -ExistingPackage $unsigned
+          if (-not $sdk) { throw 'Windows SDK makeappx and signtool are required' }
+          (Join-Path $sdk.FullName 'x64') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "package=$unsigned" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Rerun native acceptance
+        if: inputs.store_msix_identity == ''
+        shell: powershell
+        env:
+          FROZEN_PACKAGE: ${{ steps.frozen.outputs.package }}
+        run: ./eos-mail-pro/scripts/test-windows-msix.ps1 -Payload frozen/store-payload -Output store-qa -ExistingPackage $env:FROZEN_PACKAGE
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && inputs.store_msix_identity == ''
         with:
           name: eos-mail-msix-native-recheck
           path: store-qa/native-qa.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Pack the frozen payload with the Partner Center identity
+        if: inputs.store_msix_identity != ''
+        shell: powershell
+        env:
+          STORE_MSIX_IDENTITY: ${{ inputs.store_msix_identity }}
+        run: |
+          $identity = ConvertFrom-Json $env:STORE_MSIX_IDENTITY
+          python -m pip install --disable-pip-version-check Pillow==11.3.0
+          if ($LASTEXITCODE -ne 0) { throw 'MSIX packaging dependency unavailable' }
+          python eos-mail-pro/scripts/package-windows-msix.py --payload frozen/store-payload --output store-submission --pack --for-store @identity
+          if ($LASTEXITCODE -ne 0) { throw 'Formal Store MSIX packaging failed' }
+      - uses: actions/upload-artifact@v4
+        if: inputs.store_msix_identity != ''
+        with:
+          name: eos-mail-store-msix-windows-amd64
+          path: |
+            store-submission/*.msix
+            store-submission/msix-identity.json
           if-no-files-found: error
           retention-days: 7

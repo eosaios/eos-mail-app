@@ -2,52 +2,50 @@
 
 [English](./README.en.md) | [中文](./README.md)
 
-A local-first desktop email client: mail arrives over IMAP and leaves over SMTP, and everything syncs to storage on your own computer — no cloud relay, no telemetry. Multiple accounts, one-click Gmail authorization, full offline search, and dual-layer sanitized HTML rendering, built with Tauri 2 + React.
+A local-first desktop email client built with Tauri 2, Rust and React. Read and search synced mail on your computer; sending, receiving, fetching content not yet downloaded, and optional AI, account and update services require network access.
 
-> **This repository is the public portal for EOS Mail**, used for:
-> - Installer downloads: see [Releases](https://github.com/eosaios/eos-mail-app/releases)
-> - Bug reports and feature suggestions: please open [Issues](https://github.com/eosaios/eos-mail-app/issues)
-> - Multi-platform builds (GitHub Actions)
->
+> **This repository is the public portal for EOS Mail**, providing downloads, issue reporting and multi-platform builds.
 > EOS Mail is closed-source commercial software. **The source code is not in this repository.**
+> See the [product page](https://eosaios.com/en/products/mail/) and version-specific release notes for available features and downloads.
 
 ## Download & Install
 
-**Free during beta.** Pricing for the stable release will be announced closer to launch.
+The current stable release is **v0.2.0**. The old “everything is free during beta” description no longer describes this release.
 
-| Platform | Installer | Notes |
-|---|---|---|
-| Windows | `*-setup.exe` | NSIS installer, unsigned |
-| macOS | `*.dmg` | universal (Intel + Apple Silicon), unsigned |
-| Linux | `*.deb` / `*.AppImage` | both deb and AppImage |
+| Platform | Current stable download |
+|---|---|
+| macOS · Apple Silicon | [Official download](https://eosaios.com/download/eos-mail/darwin-arm64) |
+| Linux · x64 | [v0.2.0 Release](https://github.com/eosaios/eos-mail-app/releases/tag/v0.2.0), with a `.deb` package and matching `.sha256` file |
+| Windows / macOS Intel / other formats | Not included in the stable downloads above; check the website for future releases |
 
-- If Windows SmartScreen warns on first run, choose "More info → Run anyway"
-- If macOS Gatekeeper blocks the first launch, run `xattr -cr "/Applications/EOS Mail.app"`
-- Mail data lives in your user directory (a local SQLite database); upgrades never touch it, and uninstalling the app does not delete your mail
-- Integrity checks: every Release ships a SHA256SUMS.txt
+Check the download source, OS and architecture, and follow the normal installation process. If the OS displays a security warning, report the warning and version rather than disabling security checks or removing quarantine attributes. Back up important mail, attachments and exports before updating or uninstalling. Uninstalling is not the same as deleting all local copies or data held by your mail provider.
 
-## Features
+## Mail Accounts & Features
 
-- **Multiple accounts**: standard IMAP / SMTP (SSL / STARTTLS) plus one-click Gmail OAuth2
-- **Local-first**: full local indexing — read, search, and organize offline; incremental sync when you reconnect
-- **Unified search**: full-text keyword search and attachment search (`has:pdf`, `file:invoice`)
-- **Safe rendering**: HTML mail is sanitized on the Rust side and rendered inside a scriptless sandboxed iframe; remote images are blocked by default (anti read-receipt tracking) and unlocked per message on click
-- **Anti-phishing**: display-name spoofing detection, link-text versus real-domain mismatch warnings, a suspicion score banner, and content-based attachment checks (double extensions / RTL override characters / executable confirmation)
-- **Composing**: message composing, drafts, and a sent folder
-- **Personalization**: light/dark themes, English and Chinese UI
-- **100% local**: outside the mail servers you configure and the Google authorization page, the app makes no network requests — zero telemetry, zero crash reporting
+- **Multiple accounts**: connect mailboxes that support IMAP / SMTP, using provider-supported authentication and TLS-encrypted connections.
+- **Manual Gmail setup**: v0.2.0 supports Google App Passwords for IMAP receiving and SMTP sending, not one-click Gmail OAuth authorization. Enable Google 2-Step Verification, then [create an App Password](https://myaccount.google.com/apppasswords). Do not enter your main Google password. Availability depends on account eligibility and organization policies; see [Google's guidance](https://support.google.com/accounts/answer/185833).
+- **Offline use**: read and search downloaded mail. New mail sync, sending and content not yet downloaded still require a connection.
+- **Search**: search synced messages by keywords and attachment conditions; this does not mean every attachment's contents are full-text indexed.
+- **Safe rendering**: sanitized HTML mail in a scriptless sandbox, with remote images blocked by default.
+- **Anti-phishing**: warnings for sender impersonation, mismatched link domains and suspicious attachments.
+- **Writing & interface**: composing, drafts and sent-mail management, light/dark themes, and English/Chinese UI.
+
+## Pro & Network Access
+
+EOS Mail offers Pro subscriptions. The website currently lists US$5.99 monthly and US$49.99 annually. See the [product page](https://eosaios.com/en/products/mail/) for current entitlements, applicable versions and checkout pricing.
+
+Local-first does not mean fully offline or connected only to mail servers. Account sign-in, entitlement checks, updates and enabled AI / semantic indexing services may access the network. AI or semantic indexing may send relevant mail content and context to configured services; local and cloud models have different data paths. Review your configuration and the [privacy policy](https://eosaios.com/en/privacy) before enabling them. Manual Gmail setup does not grant permission for every form of cloud AI processing.
 
 ## Privacy & Credentials
 
-- Account passwords / app passwords / OAuth refresh tokens are stored **only in the OS keychain** (macOS Keychain / Windows Credential Manager / Linux Secret Service), never in the database or any plaintext file
-- Message bodies and attachments exist only in the local database and attachment directory on your computer
-- IMAP / SMTP connections are always TLS-encrypted; plaintext downgrade is not offered or accepted
+- Credentials use local credential storage. The current macOS version uses an encrypted local-file backend, not exclusively the OS keychain. OS user permissions protect the key and ciphertext; this does not defend against malicious processes running as the same user.
+- Credential encryption does not mean the entire mail database is encrypted. Synced messages and attachment copies are stored locally. When using an EOS-hosted mailbox, EOS Mail Center also stores messages on its servers as the mail provider.
+- Removing a local account, deleting mail at the provider, clearing attachments or backups, and cancelling a subscription are separate operations.
+- See the [privacy policy](https://eosaios.com/en/privacy) for data flows, third-party processing and deletion details.
 
-## Feedback Guide
+## Feedback
 
-- 🐛 Bugs: include your OS version, EOS Mail version, mail provider, and reproduction steps (**never attach message bodies or passwords**)
-- 💡 Feature requests: describe your use case, not just the solution
-- 🔒 Privacy: the app makes no network requests beyond your mail servers and the authorization page — if you observe otherwise, please report it immediately
+Open an [Issue](https://github.com/eosaios/eos-mail-app/issues) with your OS, EOS Mail version, mail provider, error message and reproduction steps. Redact private information. **Never submit passwords, App Passwords, tokens or message bodies.** Please also report behavior inconsistent with the privacy information above.
 
 ## License
 

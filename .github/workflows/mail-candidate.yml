@@ -16,6 +16,12 @@ on:
         description: Build and sideload a Windows MSIX candidate without publishing
         type: boolean
         default: false
+      reuse_msix_qa_run:
+        description: Repeat sideload acceptance of a verified unsigned MSIX from this workflow
+        default: ''
+      msix_qa_sha256:
+        description: Expected SHA-256 of the unsigned MSIX for repeat acceptance
+        default: ''
       beta_version:
         required: true
         default: '0.2.0-beta.2'
@@ -60,6 +66,8 @@ jobs:
           STABLE_VERSION: ${{ inputs.stable_version }}
           REUSE_CORE_RUN: ${{ inputs.reuse_core_run }}
           WINDOWS_MSIX_QA: ${{ inputs.windows_msix_qa }}
+          REUSE_MSIX_QA_RUN: ${{ inputs.reuse_msix_qa_run }}
+          MSIX_QA_SHA256: ${{ inputs.msix_qa_sha256 }}
         run: |
           python - <<'PYMATRIX'
           import json,os,re
@@ -72,6 +80,10 @@ jobs:
           stable=os.environ['STABLE_VERSION']
           if os.environ['WINDOWS_MSIX_QA']=='true':
               assert stable and selected_platforms=={'windows-amd64'}, "MSIX QA requires a Stable version and Windows only"
+          if os.environ['REUSE_MSIX_QA_RUN']:
+              assert os.environ['WINDOWS_MSIX_QA']=='true'
+              assert re.fullmatch(r'[0-9]+',os.environ['REUSE_MSIX_QA_RUN'])
+              assert re.fullmatch(r'[0-9a-f]{64}',os.environ['MSIX_QA_SHA256'])
           if stable:
               assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", stable), "Stable requires a numeric release version"
               assert selected_platforms <= groups['windows-linux'], "Stable here is only for Windows and Linux"
@@ -81,6 +93,7 @@ jobs:
           PYMATRIX
   build:
     needs: plan
+    if: inputs.reuse_msix_qa_run == ''
     name: ${{ matrix.platform }}
     strategy:
       fail-fast: false
@@ -325,5 +338,47 @@ jobs:
             store-qa/unsigned/*.msix
             store-qa/unsigned/msix-identity.json
             store-qa/native-qa.json
+          if-no-files-found: error
+          retention-days: 7
+  msix_recheck:
+    name: Windows MSIX sideload repeat
+    needs: plan
+    if: inputs.reuse_msix_qa_run != ''
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: eosaios/eos-mail-pro
+          ref: ${{ inputs.pro_ref }}
+          ssh-key: ${{ secrets.MAIL_PRO_BUILD_KEY }}
+          persist-credentials: false
+          path: eos-mail-pro
+      - uses: actions/download-artifact@v4
+        with:
+          name: eos-mail-msix-qa-windows-amd64
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.reuse_msix_qa_run }}
+          path: frozen
+      - name: Verify package digest and rerun native acceptance
+        shell: powershell
+        env:
+          VERSION: ${{ inputs.stable_version }}
+          EXPECTED_SHA256: ${{ inputs.msix_qa_sha256 }}
+        run: |
+          $unsigned = "frozen/store-qa/unsigned/eos-mail_${env:VERSION}.0_windows-amd64.msix"
+          if ((Get-FileHash $unsigned -Algorithm SHA256).Hash -ne $env:EXPECTED_SHA256) { throw 'Unsigned QA artifact hash changed' }
+          $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+          $sdk = Get-ChildItem $kits -Directory | Where-Object {
+            Test-Path (Join-Path $_.FullName 'x64\signtool.exe')
+          } | Sort-Object { [version] $_.Name } -Descending | Select-Object -First 1
+          if (-not $sdk) { throw 'Windows SDK signtool is required' }
+          $env:Path = (Join-Path $sdk.FullName 'x64') + ';' + $env:Path
+          ./eos-mail-pro/scripts/test-windows-msix.ps1 -Payload frozen/store-payload -Output store-qa -ExistingPackage $unsigned
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eos-mail-msix-native-recheck
+          path: store-qa/native-qa.json
           if-no-files-found: error
           retention-days: 7

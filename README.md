@@ -10,20 +10,22 @@
 
 ## 下载与安装
 
-当前正式版为 **v0.2.0**，不是“测试期间全部免费”的旧 Beta 说明。
+[最新正式版和文件校验值](https://github.com/eosaios/eos-mail-app/releases/latest)
 
 | 平台 | 当前正式版下载 |
 |---|---|
 | macOS · Apple Silicon | [官网下载](https://eosaios.com/download/eos-mail/darwin-arm64) |
-| Linux · x64 | [v0.2.0 Release](https://github.com/eosaios/eos-mail-app/releases/tag/v0.2.0)，提供 `.deb` 和对应 `.sha256` 文件 |
-| Windows / macOS Intel / 其他格式 | 当前不在上述已提供的正式安装包范围内，请以官网后续发布为准 |
+| Windows · x64 | [官网下载 `.exe`](https://eosaios.com/download/eos-mail/windows-amd64) |
+| Linux · x64 | [官网下载 `.deb`](https://eosaios.com/download/eos-mail/linux-amd64) |
+
+Windows 官网安装包未签署 Authenticode，SmartScreen 可能提示未知发布者。
 
 请核对下载来源、系统和架构，按操作系统正常安装流程操作。遇到系统安全提示时，请保留提示和版本信息并反馈，不要通过关闭安全检查或清除隔离属性来绕过。更新或卸载前，请自行备份重要邮件、附件及导出文件；卸载不等于删除所有本地副本或服务商邮箱数据。
 
 ## 邮箱与功能
 
 - **多账户**：连接支持 IMAP / SMTP 的邮箱，使用服务商允许的认证方式及 TLS 加密连接。
-- **Gmail 手动绑定**：v0.2.0 支持 Google 应用专用密码，通过 IMAP 收信、SMTP 发信；不是 Gmail OAuth 一键授权。请先开启 Google 两步验证，再[生成应用专用密码](https://myaccount.google.com/apppasswords)，不要填写 Google 主密码。能否生成取决于账号资格及组织管理策略，详见 [Google 官方说明](https://support.google.com/accounts/answer/185833)。
+- **Gmail 手动绑定**：使用 Google 应用专用密码通过 IMAP 收信、SMTP 发信。请先开启 Google 两步验证，再[生成应用专用密码](https://myaccount.google.com/apppasswords)，不要填写 Google 主密码。能否生成取决于账号资格及组织管理策略，详见 [Google 官方说明](https://support.google.com/accounts/answer/185833)。
 - **离线使用**：阅读、搜索已下载的邮件；新邮件同步、发信及未下载的内容仍需联网。
 - **搜索**：按关键词和附件条件搜索已同步邮件，不代表对所有附件正文建立全文索引。
 - **安全渲染**：HTML 邮件消毒后在无脚本沙箱内显示；远程图片默认拦截。

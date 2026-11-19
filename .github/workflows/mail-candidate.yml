@@ -12,6 +12,10 @@ on:
         description: Stable version for Windows and Linux, empty for the existing candidate flow
         required: false
         default: ''
+      windows_msix_qa:
+        description: Build and sideload a Windows MSIX candidate without publishing
+        type: boolean
+        default: false
       beta_version:
         required: true
         default: '0.2.0-beta.2'
@@ -55,6 +59,7 @@ jobs:
           PRO_REF: ${{ inputs.pro_ref }}
           STABLE_VERSION: ${{ inputs.stable_version }}
           REUSE_CORE_RUN: ${{ inputs.reuse_core_run }}
+          WINDOWS_MSIX_QA: ${{ inputs.windows_msix_qa }}
         run: |
           python - <<'PYMATRIX'
           import json,os,re
@@ -65,6 +70,8 @@ jobs:
           selected_platforms=groups.get(selected,{selected})
           assert selected_platforms <= groups['all'], "Unknown platform"
           stable=os.environ['STABLE_VERSION']
+          if os.environ['WINDOWS_MSIX_QA']=='true':
+              assert stable and selected_platforms=={'windows-amd64'}, "MSIX QA requires a Stable version and Windows only"
           if stable:
               assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", stable), "Stable requires a numeric release version"
               assert selected_platforms <= groups['windows-linux'], "Stable here is only for Windows and Linux"
@@ -258,7 +265,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Build and verify stable installer
-        if: inputs.stable_version != ''
+        if: inputs.stable_version != '' && !inputs.windows_msix_qa
         shell: bash
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/mail-build/target
@@ -278,9 +285,45 @@ jobs:
             --base eos-mail --core "eos-core-rs/target/release/$CORE" --version "$VERSION" \
             --channel stable --platform "$PLATFORM" --build-id "$BUILD_ID" --output stable-output "${TEST_ARGS[@]}"
       - uses: actions/upload-artifact@v4
-        if: inputs.stable_version != ''
+        if: inputs.stable_version != '' && !inputs.windows_msix_qa
         with:
           name: eos-mail-stable-${{ matrix.platform }}
           path: stable-output/*
           if-no-files-found: error
+      - name: Build isolated Mail Store payload
+        if: inputs.windows_msix_qa
+        shell: bash
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/mail-build/target
+          RUSTFLAGS: --remap-path-prefix=${{ github.workspace }}=/build
+          VERSION: ${{ inputs.stable_version }}
+          BUILD_ID: mail-msix-qa-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          python eos-mail-pro/scripts/release_candidate.py --base eos-mail \
+            --core eos-core-rs/target/release/eos-core-mail.exe --version "$VERSION" --channel stable \
+            --platform windows-amd64 --build-id "$BUILD_ID" --output store-payload --windows-msix-payload
+      - name: Pack, sideload and exercise MSIX
+        if: inputs.windows_msix_qa
+        shell: powershell
+        run: |
+          python -m pip install --disable-pip-version-check Pillow==11.3.0
+          if ($LASTEXITCODE -ne 0) { throw 'MSIX packaging dependency unavailable' }
+          $kits = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+          $sdk = Get-ChildItem $kits -Directory | Where-Object {
+            (Test-Path (Join-Path $_.FullName 'x64\makeappx.exe')) -and (Test-Path (Join-Path $_.FullName 'x64\signtool.exe'))
+          } | Sort-Object { [version] $_.Name } -Descending | Select-Object -First 1
+          if (-not $sdk) { throw 'Windows SDK makeappx and signtool are required' }
+          $env:Path = (Join-Path $sdk.FullName 'x64') + ';' + $env:Path
+          ./eos-mail-pro/scripts/test-windows-msix.ps1 -Payload store-payload -Output store-qa
+      - uses: actions/upload-artifact@v4
+        if: inputs.windows_msix_qa && always()
+        with:
+          name: eos-mail-msix-qa-windows-amd64
+          path: |
+            store-payload/**
+            store-qa/unsigned/*.msix
+            store-qa/unsigned/msix-identity.json
+            store-qa/native-qa.json
+          if-no-files-found: error
+          retention-days: 7
           retention-days: 30
